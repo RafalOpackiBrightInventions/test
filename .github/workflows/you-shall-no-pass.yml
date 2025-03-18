@@ -3,7 +3,7 @@ name: Block PRs with Unintended Develop Commits
 on:
   pull_request:
     branches:
-      - 'release/ido-**'  # Apply this check only when PRs target w10 or any release branch
+      - 'release/ido-*'  # Apply this check only when PRs target w10 or any release branch
 
 jobs:
   check-commits:

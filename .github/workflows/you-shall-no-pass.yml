@@ -3,7 +3,8 @@ name: Block PRs with Unintended Develop Commits
 on:
   pull_request:
     branches:
-      - release/ido-*  # Apply to all release branches following the pattern
+      - w10
+      - 'release/ido-**'  # This pattern will match any branch with release/ido- prefix
 
 jobs:
   check-commits:
@@ -16,25 +17,39 @@ jobs:
 
       - name: Find Unintended Develop Commits
         run: |
-          BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH")  # Target branch of the PR
+          BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH")  # e.g., w10 or release/ido-2025-13
           PR_BRANCH=$(jq -r ".pull_request.head.ref" "$GITHUB_EVENT_PATH")  # PR branch
-          DEVELOP_BRANCH=main
-
-          # Ensure the base branch matches the expected patterns
-          if [[ "$BASE_BRANCH" != "w10" && ! "$BASE_BRANCH" =~ ^release/ido-[0-9]{4}-[0-9]{2}$ ]]; then
-            echo "Skipping check: Target branch does not match expected patterns."
-            exit 0
-          fi
-
-          # Find the common ancestor (merge base) of develop and the target branch
+          DEVELOP_BRANCH=main  # Assuming main is your develop branch
+          
+          echo "Checking PR to $BASE_BRANCH from $PR_BRANCH"
+          
+          # Find the common ancestor (merge base) of develop and target branch
           COMMON_ANCESTOR=$(git merge-base origin/$DEVELOP_BRANCH origin/$BASE_BRANCH)
-
-          # List commits in the PR that came from develop
-          UNEXPECTED_COMMITS=$(git log --oneline $COMMON_ANCESTOR..origin/$PR_BRANCH --ancestry-path --grep='.*' --pretty=format:'%h %s' | grep -F "$(git log --oneline $COMMON_ANCESTOR..origin/$DEVELOP_BRANCH --pretty=format:'%h %s')")
-
+          
+          echo "Common ancestor commit: $COMMON_ANCESTOR"
+          
+          # Create temporary files to store commit hashes
+          DEVELOP_COMMITS_FILE=$(mktemp)
+          PR_COMMITS_FILE=$(mktemp)
+          
+          # Get develop commits since the common ancestor
+          git log --format="%H" $COMMON_ANCESTOR..origin/$DEVELOP_BRANCH > $DEVELOP_COMMITS_FILE
+          
+          # Get PR branch commits since the common ancestor
+          git log --format="%H" $COMMON_ANCESTOR..origin/$PR_BRANCH > $PR_COMMITS_FILE
+          
+          # Find commits that appear in both lists (intersection)
+          UNEXPECTED_COMMITS=$(comm -12 <(sort $DEVELOP_COMMITS_FILE) <(sort $PR_COMMITS_FILE))
+          
+          # Clean up temp files
+          rm $DEVELOP_COMMITS_FILE $PR_COMMITS_FILE
+          
           if [[ -n "$UNEXPECTED_COMMITS" ]]; then
             echo "❌ The following commits from develop are unintentionally included:"
-            echo "$UNEXPECTED_COMMITS"
+            for COMMIT in $UNEXPECTED_COMMITS; do
+              git show --oneline --no-patch $COMMIT
+            done
+            echo "These commits should not be included in PRs to release branches."
             exit 1  # Fail the action to block the PR
           else
             echo "✅ No unintended develop commits found."

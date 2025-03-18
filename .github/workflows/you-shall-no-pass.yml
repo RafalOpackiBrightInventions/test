@@ -3,7 +3,7 @@ name: Block PRs with Unintended Develop Commits
 on:
   pull_request:
     branches:
-      - w10  # Apply this check only when PRs target w10 or any release branch
+      - release/ido-*  # Apply to all release branches following the pattern
 
 jobs:
   check-commits:
@@ -16,11 +16,17 @@ jobs:
 
       - name: Find Unintended Develop Commits
         run: |
-          BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH")  # e.g., w10
+          BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH")  # Target branch of the PR
           PR_BRANCH=$(jq -r ".pull_request.head.ref" "$GITHUB_EVENT_PATH")  # PR branch
           DEVELOP_BRANCH=main
 
-          # Find the common ancestor (merge base) of develop and w10
+          # Ensure the base branch matches the expected patterns
+          if [[ "$BASE_BRANCH" != "w10" && ! "$BASE_BRANCH" =~ ^release/ido-[0-9]{4}-[0-9]{2}$ ]]; then
+            echo "Skipping check: Target branch does not match expected patterns."
+            exit 0
+          fi
+
+          # Find the common ancestor (merge base) of develop and the target branch
           COMMON_ANCESTOR=$(git merge-base origin/$DEVELOP_BRANCH origin/$BASE_BRANCH)
 
           # List commits in the PR that came from develop

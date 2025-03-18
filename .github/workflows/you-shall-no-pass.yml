@@ -19,7 +19,7 @@ jobs:
         run: |
           BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH") # e.g., w10 or release/ido-2025-13
           PR_BRANCH=$(jq -r ".pull_request.head.ref" "$GITHUB_EVENT_PATH") # PR branch
-          DEVELOP_BRANCH=develop # Your develop branch name
+          DEVELOP_BRANCH=main # Your develop branch name
           
           echo "Base branch: $BASE_BRANCH"
           echo "PR branch: $PR_BRANCH"

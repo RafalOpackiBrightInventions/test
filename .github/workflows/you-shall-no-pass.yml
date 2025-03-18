@@ -3,7 +3,7 @@ name: Block PRs with Unintended Develop Commits
 on:
   pull_request:
     branches:
-      - 'release/ido-*'  # Apply this check only when PRs target w10 or any release branch
+      - 'release/ido-*'  # Apply this workflow only to PRs targeting release/ido-* branches
 
 jobs:
   check-commits:
@@ -14,22 +14,29 @@ jobs:
         with:
           fetch-depth: 0  # Fetch full history to analyze commits
 
-      - name: Find Unintended Develop Commits
+      - name: Check branch pattern and find unintended develop commits
         run: |
-          BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH")  # e.g., w10
+          BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH")  # Target branch
           PR_BRANCH=$(jq -r ".pull_request.head.ref" "$GITHUB_EVENT_PATH")  # PR branch
           DEVELOP_BRANCH=main
+          
+          # Check if the base branch matches the pattern
+          if [[ "$BASE_BRANCH" =~ ^release/ido-.* ]]; then
+            echo "Target branch $BASE_BRANCH matches the required pattern. Running check..."
+            
+            # Find the common ancestor (merge base) of develop and target branch
+            COMMON_ANCESTOR=$(git merge-base origin/$DEVELOP_BRANCH origin/$BASE_BRANCH)
 
-          # Find the common ancestor (merge base) of develop and w10
-          COMMON_ANCESTOR=$(git merge-base origin/$DEVELOP_BRANCH origin/$BASE_BRANCH)
+            # List commits in the PR that came from develop
+            UNEXPECTED_COMMITS=$(git log --oneline $COMMON_ANCESTOR..origin/$PR_BRANCH --ancestry-path --grep='.*' --pretty=format:'%h %s' | grep -F "$(git log --oneline $COMMON_ANCESTOR..origin/$DEVELOP_BRANCH --pretty=format:'%h %s')")
 
-          # List commits in the PR that came from develop
-          UNEXPECTED_COMMITS=$(git log --oneline $COMMON_ANCESTOR..origin/$PR_BRANCH --ancestry-path --grep='.*' --pretty=format:'%h %s' | grep -F "$(git log --oneline $COMMON_ANCESTOR..origin/$DEVELOP_BRANCH --pretty=format:'%h %s')")
-
-          if [[ -n "$UNEXPECTED_COMMITS" ]]; then
-            echo "❌ The following commits from develop are unintentionally included:"
-            echo "$UNEXPECTED_COMMITS"
-            exit 1  # Fail the action to block the PR
+            if [[ -n "$UNEXPECTED_COMMITS" ]]; then
+              echo "❌ The following commits from develop are unintentionally included:"
+              echo "$UNEXPECTED_COMMITS"
+              exit 1  # Fail the action to block the PR
+            else
+              echo "✅ No unintended develop commits found."
+            fi
           else
-            echo "✅ No unintended develop commits found."
+            echo "Target branch $BASE_BRANCH does not match the required pattern. Skipping check."
           fi

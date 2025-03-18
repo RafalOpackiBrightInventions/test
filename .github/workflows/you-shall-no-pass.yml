@@ -1,0 +1,35 @@
+name: Block PRs with Unintended Develop Commits
+
+on:
+  pull_request:
+    branches:
+      - w10  # Apply this check only when PRs target w10 or any release branch
+
+jobs:
+  check-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history to analyze commits
+
+      - name: Find Unintended Develop Commits
+        run: |
+          BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH")  # e.g., w10
+          PR_BRANCH=$(jq -r ".pull_request.head.ref" "$GITHUB_EVENT_PATH")  # PR branch
+          DEVELOP_BRANCH=develop
+
+          # Find the common ancestor (merge base) of develop and w10
+          COMMON_ANCESTOR=$(git merge-base origin/$DEVELOP_BRANCH origin/$BASE_BRANCH)
+
+          # List commits in the PR that came from develop
+          UNEXPECTED_COMMITS=$(git log --oneline $COMMON_ANCESTOR..origin/$PR_BRANCH --ancestry-path --grep='.*' --pretty=format:'%h %s' | grep -F "$(git log --oneline $COMMON_ANCESTOR..origin/$DEVELOP_BRANCH --pretty=format:'%h %s')")
+
+          if [[ -n "$UNEXPECTED_COMMITS" ]]; then
+            echo "❌ The following commits from develop are unintentionally included:"
+            echo "$UNEXPECTED_COMMITS"
+            exit 1  # Fail the action to block the PR
+          else
+            echo "✅ No unintended develop commits found."
+          fi

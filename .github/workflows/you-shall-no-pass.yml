@@ -1,42 +1,54 @@
-name: Block PRs with Unintended Develop Commits
+name: Hotfix Branch Validation
 
 on:
   pull_request:
-    branches:
-      - 'release/ido-*'  # Apply this workflow only to PRs targeting release/ido-* branches
+    types: [opened, synchronize, edited]
 
 jobs:
-  check-commits:
+  validate-hotfix-pr:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR branch
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history to analyze commits
+          fetch-depth: 0  # Fetch full history for comparison
 
-      - name: Check branch pattern and find unintended develop commits
+      - name: Validate Hotfix Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BASE_BRANCH=$(jq -r ".base.ref" "$GITHUB_EVENT_PATH")  # Target branch
-          PR_BRANCH=$(jq -r ".pull_request.head.ref" "$GITHUB_EVENT_PATH")  # PR branch
-          DEVELOP_BRANCH=main
-          
-          # Check if the base branch matches the pattern
-          if [[ "$BASE_BRANCH" =~ ^release/ido-.* ]]; then
-            echo "Target branch $BASE_BRANCH matches the required pattern. Running check..."
-            
-            # Find the common ancestor (merge base) of develop and target branch
-            COMMON_ANCESTOR=$(git merge-base origin/$DEVELOP_BRANCH origin/$BASE_BRANCH)
-
-            # List commits in the PR that came from develop
-            UNEXPECTED_COMMITS=$(git log --oneline $COMMON_ANCESTOR..origin/$PR_BRANCH --ancestry-path --grep='.*' --pretty=format:'%h %s' | grep -F "$(git log --oneline $COMMON_ANCESTOR..origin/$DEVELOP_BRANCH --pretty=format:'%h %s')")
-
-            if [[ -n "$UNEXPECTED_COMMITS" ]]; then
-              echo "❌ The following commits from develop are unintentionally included:"
-              echo "$UNEXPECTED_COMMITS"
-              exit 1  # Fail the action to block the PR
-            else
-              echo "✅ No unintended develop commits found."
+          # Validate release branch naming
+          validate_release_branch_name() {
+            local branch_name="$1"
+            if [[ ! "$branch_name" =~ ^release/ido-[0-9]{4}-[0-9]{2}$ ]]; then
+              echo "::error::Invalid release branch name. Must follow pattern 'release/ido-YYYY-WW'."
+              exit 1
             fi
-          else
-            echo "Target branch $BASE_BRANCH does not match the required pattern. Skipping check."
+          }
+
+          # Get PR details
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          BASE_BRANCH=$(gh pr view "$PR_NUMBER" --json baseRefName -q .baseRefName)
+          HEAD_BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)
+
+          # Validate release branch name if base is a release branch
+          if [[ "$BASE_BRANCH" == release/* ]]; then
+            validate_release_branch_name "$BASE_BRANCH"
+
+            # Check for commits from develop in the PR
+            # Get commits in the PR
+            pr_commits=$(gh pr diff "$PR_NUMBER" --patch | grep -E '^commit ' | awk '{print $2}')
+
+            # Get all commits from develop that are not in the release branch
+            develop_unique_commits=$(gh git log develop --not "$BASE_BRANCH" --pretty=format:"%H")
+
+            # Check if any PR commits match develop's unique commits
+            for commit in $pr_commits; do
+              if echo "$develop_unique_commits" | grep -q "$commit"; then
+                echo "::error::Hotfix PR contains commits from develop branch. This is not allowed."
+                exit 1
+              fi
+            done
           fi
+
+          echo "PR validation passed successfully!"

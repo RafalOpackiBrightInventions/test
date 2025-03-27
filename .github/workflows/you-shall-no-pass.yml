@@ -1,9 +1,9 @@
-name: Hotfix Branch Validation
+name: Release Branch Validation
 on:
   pull_request:
     types: [opened, synchronize, edited]
 jobs:
-  validate-hotfix-pr:
+  validate-release-pr:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

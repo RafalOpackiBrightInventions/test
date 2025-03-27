@@ -2,6 +2,7 @@ name: Release Branch Validation
 on:
   pull_request:
     types: [opened, synchronize, edited]
+
 jobs:
   validate-release-pr:
     runs-on: ubuntu-latest
@@ -9,7 +10,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history for comparison
+          fetch-depth: 0 # Fetch full history for comparison
+
       - name: Validate Hotfix Pull Request
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -22,14 +24,15 @@ jobs:
               exit 1
             fi
           }
-          
+
           # Get PR details
           PR_NUMBER="${{ github.event.pull_request.number }}"
           BASE_BRANCH=$(gh pr view "$PR_NUMBER" --json baseRefName -q .baseRefName)
           HEAD_BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)
-          
-          # Validate release branch name if base is a release branch
+
+          # Validate ONLY if base branch is a release branch
           if [[ "$BASE_BRANCH" == release/* ]]; then
+            # Validate branch name
             validate_release_branch_name "$BASE_BRANCH"
             
             # Fetch the latest commits explicitly
@@ -55,5 +58,5 @@ jobs:
               exit 1
             fi
           fi
-          
+
           echo "PR validation passed successfully!"

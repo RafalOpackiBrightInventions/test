@@ -1,9 +1,7 @@
 name: Hotfix Branch Validation
-
 on:
   pull_request:
     types: [opened, synchronize, edited]
-
 jobs:
   validate-hotfix-pr:
     runs-on: ubuntu-latest
@@ -12,7 +10,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch full history for comparison
-
       - name: Validate Hotfix Pull Request
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -25,30 +22,38 @@ jobs:
               exit 1
             fi
           }
-
+          
           # Get PR details
           PR_NUMBER="${{ github.event.pull_request.number }}"
           BASE_BRANCH=$(gh pr view "$PR_NUMBER" --json baseRefName -q .baseRefName)
           HEAD_BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)
-
+          
           # Validate release branch name if base is a release branch
           if [[ "$BASE_BRANCH" == release/* ]]; then
             validate_release_branch_name "$BASE_BRANCH"
-
-            # Check for commits from develop in the PR
-            # Get commits in the PR
-            pr_commits=$(gh pr diff "$PR_NUMBER" --patch | grep -E '^commit ' | awk '{print $2}')
-
-            # Get all commits from develop that are not in the release branch
-            develop_unique_commits=$(gh git log develop --not "$BASE_BRANCH" --pretty=format:"%H")
-
+            
+            # Fetch the latest commits explicitly
+            git fetch origin develop "$BASE_BRANCH"
+            
+            # Get commits in the PR using git log
+            pr_commits=$(git log origin/"$HEAD_BRANCH" --not origin/"$BASE_BRANCH" --pretty=format:"%H")
+            
+            # Get unique commits from develop
+            develop_unique_commits=$(git log origin/develop --not origin/"$BASE_BRANCH" --pretty=format:"%H")
+            
             # Check if any PR commits match develop's unique commits
+            unauthorized_commits=0
             for commit in $pr_commits; do
               if echo "$develop_unique_commits" | grep -q "$commit"; then
-                echo "::error::Hotfix PR contains commits from develop branch. This is not allowed."
-                exit 1
+                echo "::error::Hotfix PR contains commit $commit from develop branch. This is not allowed."
+                ((unauthorized_commits++))
               fi
             done
+            
+            # Exit with error if any unauthorized commits found
+            if [ $unauthorized_commits -gt 0 ]; then
+              exit 1
+            fi
           fi
-
+          
           echo "PR validation passed successfully!"

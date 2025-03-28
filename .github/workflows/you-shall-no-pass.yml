@@ -13,6 +13,11 @@ jobs:
         with:
           fetch-depth: 0 # Fetch full history for comparison
 
+      - name: Clear GitHub cache (fetch latest data)
+        run: |
+          git fetch --prune --all
+          git remote prune origin
+
       - name: Validate Release Branch Pull Request
         if: startsWith(github.base_ref, 'release/ido-')
         env:
@@ -26,17 +31,22 @@ jobs:
               exit 1
             fi
           }
+          
           # Get PR details ONLY for the triggered PR
           PR_NUMBER="${{ github.event.pull_request.number }}"
           BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
           HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
           echo "Validating PR #$PR_NUMBER from $HEAD_BRANCH to $BASE_BRANCH..."
+          
           # Validate ONLY if base branch is a release branch
           if [[ "$BASE_BRANCH" == release/* ]]; then
             validate_release_branch_name "$BASE_BRANCH"
             
-            # Fetch the latest commits explicitly
-            git fetch origin develop "$BASE_BRANCH"
+            # Fetch latest commits explicitly
+            git fetch origin develop "$BASE_BRANCH" --force
+            
+            # Remove stale references (avoid cache issues)
+            git remote prune origin
             
             # Get commits in the PR using git log
             pr_commits=$(git log origin/"$HEAD_BRANCH" --not origin/"$BASE_BRANCH" --pretty=format:"%H")

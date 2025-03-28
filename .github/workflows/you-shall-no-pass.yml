@@ -4,9 +4,6 @@ on:
     types: [edited, opened, reopened, ready_for_review, synchronize]
     branches:
       - 'release/ido-**'
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
 
 jobs:
   validate-pr-to-release-branch:

@@ -3,7 +3,7 @@ on:
   pull_request:
     types: [edited, opened, reopened, ready_for_review, synchronize]
     branches:
-      - 'release/ido-**'
+      - 'release/*'
 
 jobs:
   validate-pr-to-release-branch:

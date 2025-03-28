@@ -2,6 +2,8 @@ name: Release Branch Validation
 on:
   pull_request:
     types: [opened, synchronize, edited]
+    branches:
+      - 'release/ido-**'
 
 jobs:
   validate-release-pr:

@@ -25,10 +25,10 @@ jobs:
             fi
           }
 
-          # Get PR details
+          # Get PR details ONLY for the triggered PR
           PR_NUMBER="${{ github.event.pull_request.number }}"
-          BASE_BRANCH=$(gh pr view "$PR_NUMBER" --json baseRefName -q .baseRefName)
-          HEAD_BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
 
           echo "Validating PR #$PR_NUMBER from $HEAD_BRANCH to $BASE_BRANCH..."
 

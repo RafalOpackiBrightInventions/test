@@ -1,7 +1,6 @@
 name: Release Branch Pull Request Validation
 on:
   pull_request:
-    types: [opened, synchronize, edited]
     branches:
       - 'release/ido-**'
 

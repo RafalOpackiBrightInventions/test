@@ -1,12 +1,16 @@
-name: Release Branch Pull Request Validation
+name: Release Branch Validation
 on:
   pull_request:
     types: [edited, opened, reopened, ready_for_review, synchronize]
     branches:
-      - 'release/*'
+      - 'release/ido-**'
+      
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
-  validate-pr-to-release-branch:
+  validate-release-pr:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

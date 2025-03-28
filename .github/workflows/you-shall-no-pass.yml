@@ -12,7 +12,7 @@ jobs:
         with:
           fetch-depth: 0 # Fetch full history for comparison
 
-      - name: Validate Hotfix Pull Request
+      - name: Validate Release Branch Pull Request
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -30,9 +30,10 @@ jobs:
           BASE_BRANCH=$(gh pr view "$PR_NUMBER" --json baseRefName -q .baseRefName)
           HEAD_BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)
 
+          echo "Validating PR #$PR_NUMBER from $HEAD_BRANCH to $BASE_BRANCH..."
+
           # Validate ONLY if base branch is a release branch
           if [[ "$BASE_BRANCH" == release/* ]]; then
-            # Validate branch name
             validate_release_branch_name "$BASE_BRANCH"
             
             # Fetch the latest commits explicitly
@@ -55,6 +56,7 @@ jobs:
             
             # Exit with error if any unauthorized commits found
             if [ $unauthorized_commits -gt 0 ]; then
+              echo "::error::Validation failed for PR #$PR_NUMBER."
               exit 1
             fi
           fi

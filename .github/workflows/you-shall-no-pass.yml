@@ -22,7 +22,7 @@ jobs:
           echo "Validating PR #$PR_NUMBER from $HEAD_BRANCH to $BASE_BRANCH..."
           
           # Fetch the latest commits explicitly
-          git fetch origin develop "$BASE_BRANCH"
+          git fetch origin "$HEAD_BRANCH" "$BASE_BRANCH" develop --no-tags
           
           # Get commits in the PR using git log
           pr_commits=$(git log origin/"$HEAD_BRANCH" --not origin/"$BASE_BRANCH" --pretty=format:"%H")

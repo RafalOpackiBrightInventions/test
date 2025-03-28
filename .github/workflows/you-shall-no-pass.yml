@@ -11,7 +11,9 @@ concurrency:
 
 jobs:
   validate-release-pr:
-    if: startsWith(github.event.pull_request.base_ref, 'release/ido-')
+    echo "To: ${{ github.event.pull_request.base.ref }}"
+    echo "To: ${{ github.base_ref }}"
+    if: startsWith(github.event.pull_request.base.ref, 'release/ido-')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

@@ -2,8 +2,7 @@ name: Release Branch Pull Request Validation
 on:
   pull_request:
     branches:
-      - 'release/ido-**'
-
+      - 'release/ido-[0-9][0-9][0-9][0-9]-[0-9][0-9]'
 jobs:
   validate-pr-to-release-branch:
     runs-on: ubuntu-latest
@@ -12,51 +11,38 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Fetch full history for comparison
-
       - name: Validate Release Branch Pull Request
-        if: startsWith(github.base_ref, 'release/ido-')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Validate release branch naming
-          validate_release_branch_name() {
-            local branch_name="$1"
-            if [[ ! "$branch_name" =~ ^release/ido-[0-9]{4}-[0-9]{2}$ ]]; then
-              echo "::error::Invalid release branch name. Must follow pattern 'release/ido-YYYY-WW'."
-              exit 1
-            fi
-          }
           # Get PR details ONLY for the triggered PR
           PR_NUMBER="${{ github.event.pull_request.number }}"
           BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
           HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
           echo "Validating PR #$PR_NUMBER from $HEAD_BRANCH to $BASE_BRANCH..."
-          # Validate ONLY if base branch is a release branch
-          if [[ "$BASE_BRANCH" == release/* ]]; then
-            validate_release_branch_name "$BASE_BRANCH"
-            
-            # Fetch the latest commits explicitly
-            git fetch origin develop "$BASE_BRANCH"
-            
-            # Get commits in the PR using git log
-            pr_commits=$(git log origin/"$HEAD_BRANCH" --not origin/"$BASE_BRANCH" --pretty=format:"%H")
-            
-            # Get unique commits from develop
-            develop_unique_commits=$(git log origin/develop --not origin/"$BASE_BRANCH" --pretty=format:"%H")
-            
-            # Check if any PR commits match develop's unique commits
-            unauthorized_commits=0
-            for commit in $pr_commits; do
-              if echo "$develop_unique_commits" | grep -q "$commit"; then
-                echo "::error::Hotfix PR contains commit $commit from develop branch. This is not allowed."
-                ((unauthorized_commits++))
-              fi
-            done
-            
-            # Exit with error if any unauthorized commits found
-            if [ $unauthorized_commits -gt 0 ]; then
-              echo "::error::Validation failed for PR #$PR_NUMBER."
-              exit 1
+          
+          # Fetch the latest commits explicitly
+          git fetch origin develop "$BASE_BRANCH"
+          
+          # Get commits in the PR using git log
+          pr_commits=$(git log origin/"$HEAD_BRANCH" --not origin/"$BASE_BRANCH" --pretty=format:"%H")
+          
+          # Get unique commits from develop
+          develop_unique_commits=$(git log origin/develop --not origin/"$BASE_BRANCH" --pretty=format:"%H")
+          
+          # Check if any PR commits match develop's unique commits
+          unauthorized_commits=0
+          for commit in $pr_commits; do
+            if echo "$develop_unique_commits" | grep -q "$commit"; then
+              echo "::error::Hotfix PR contains commit $commit from develop branch. This is not allowed."
+              ((unauthorized_commits++))
             fi
+          done
+          
+          # Exit with error if any unauthorized commits found
+          if [ $unauthorized_commits -gt 0 ]; then
+            echo "::error::Validation failed for PR #$PR_NUMBER."
+            exit 1
           fi
+          
           echo "PR validation passed successfully!"

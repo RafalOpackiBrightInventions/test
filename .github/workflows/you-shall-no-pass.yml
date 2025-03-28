@@ -1,19 +1,12 @@
-name: Release Branch Validation
+name: Release Branch Pull Request Validation
 on:
   pull_request:
-    types: [edited, opened, reopened, ready_for_review, synchronize]
+    types: [opened, synchronize, edited]
     branches:
       - 'release/ido-**'
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
-  validate-release-pr:
-    echo "To: ${{ github.event.pull_request.base.ref }}"
-    echo "To: ${{ github.base_ref }}"
-    if: startsWith(github.event.pull_request.base.ref, 'release/ido-')
+  validate-pr-to-release-branch:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -33,14 +26,11 @@ jobs:
               exit 1
             fi
           }
-
           # Get PR details ONLY for the triggered PR
           PR_NUMBER="${{ github.event.pull_request.number }}"
           BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
           HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
-
           echo "Validating PR #$PR_NUMBER from $HEAD_BRANCH to $BASE_BRANCH..."
-
           # Validate ONLY if base branch is a release branch
           if [[ "$BASE_BRANCH" == release/* ]]; then
             validate_release_branch_name "$BASE_BRANCH"
@@ -69,5 +59,4 @@ jobs:
               exit 1
             fi
           fi
-
           echo "PR validation passed successfully!"

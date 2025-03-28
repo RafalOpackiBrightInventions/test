@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   validate-release-pr:
-    if: startsWith(github.base_ref, 'release/ido-')
+    if: startsWith(github.event.pull_request.base_ref, 'release/ido-')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

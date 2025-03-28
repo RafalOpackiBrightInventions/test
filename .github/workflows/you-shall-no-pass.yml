@@ -4,13 +4,14 @@ on:
     types: [edited, opened, reopened, ready_for_review, synchronize]
     branches:
       - 'release/ido-**'
-      
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   validate-release-pr:
+    if: startsWith(github.base_ref, 'release/ido-')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

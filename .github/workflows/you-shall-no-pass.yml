@@ -14,7 +14,7 @@ jobs:
           fetch-depth: 0 # Fetch full history for comparison
 
       - name: Validate Release Branch Pull Request
-        if: startsWith(github.base_ref, 'release/ido-')
+        # if: startsWith(github.base_ref, 'release/ido-')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
